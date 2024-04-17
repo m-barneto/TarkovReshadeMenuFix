@@ -1,0 +1,51 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.9.34728.123
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ReshadeAPI", "ReshadeAPI\ReshadeAPI.vcxproj", "{9E6FDBE6-7ADD-4363-93F6-402936C6E6AD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReshadePlugin", "ReshadePlugin\ReshadePlugin.csproj", "{35793A14-5773-42E6-9899-9F4BF4660174}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9E6FDBE6-7ADD-4363-93F6-402936C6E6AD}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{9E6FDBE6-7ADD-4363-93F6-402936C6E6AD}.Debug|Any CPU.Build.0 = Debug|x64
+		{9E6FDBE6-7ADD-4363-93F6-402936C6E6AD}.Debug|x64.ActiveCfg = Debug|x64
+		{9E6FDBE6-7ADD-4363-93F6-402936C6E6AD}.Debug|x64.Build.0 = Debug|x64
+		{9E6FDBE6-7ADD-4363-93F6-402936C6E6AD}.Debug|x86.ActiveCfg = Debug|Win32
+		{9E6FDBE6-7ADD-4363-93F6-402936C6E6AD}.Debug|x86.Build.0 = Debug|Win32
+		{9E6FDBE6-7ADD-4363-93F6-402936C6E6AD}.Release|Any CPU.ActiveCfg = Release|x64
+		{9E6FDBE6-7ADD-4363-93F6-402936C6E6AD}.Release|Any CPU.Build.0 = Release|x64
+		{9E6FDBE6-7ADD-4363-93F6-402936C6E6AD}.Release|x64.ActiveCfg = Release|x64
+		{9E6FDBE6-7ADD-4363-93F6-402936C6E6AD}.Release|x64.Build.0 = Release|x64
+		{9E6FDBE6-7ADD-4363-93F6-402936C6E6AD}.Release|x86.ActiveCfg = Release|Win32
+		{9E6FDBE6-7ADD-4363-93F6-402936C6E6AD}.Release|x86.Build.0 = Release|Win32
+		{35793A14-5773-42E6-9899-9F4BF4660174}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{35793A14-5773-42E6-9899-9F4BF4660174}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{35793A14-5773-42E6-9899-9F4BF4660174}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{35793A14-5773-42E6-9899-9F4BF4660174}.Debug|x64.Build.0 = Debug|Any CPU
+		{35793A14-5773-42E6-9899-9F4BF4660174}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{35793A14-5773-42E6-9899-9F4BF4660174}.Debug|x86.Build.0 = Debug|Any CPU
+		{35793A14-5773-42E6-9899-9F4BF4660174}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{35793A14-5773-42E6-9899-9F4BF4660174}.Release|Any CPU.Build.0 = Release|Any CPU
+		{35793A14-5773-42E6-9899-9F4BF4660174}.Release|x64.ActiveCfg = Release|Any CPU
+		{35793A14-5773-42E6-9899-9F4BF4660174}.Release|x64.Build.0 = Release|Any CPU
+		{35793A14-5773-42E6-9899-9F4BF4660174}.Release|x86.ActiveCfg = Release|Any CPU
+		{35793A14-5773-42E6-9899-9F4BF4660174}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B8346292-E325-4F5C-9F7D-160C2B91ED16}
+	EndGlobalSection
+EndGlobal
