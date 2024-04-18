@@ -7,7 +7,7 @@
 
 #include "reshade_api_resource.hpp"
 
-namespace reshade { namespace api
+namespace reshade::api
 {
 	/// <summary>
 	/// A list of flags that represent the available shader stages in the render pipeline.
@@ -21,20 +21,9 @@ namespace reshade { namespace api
 		pixel = 0x10,
 		compute = 0x20,
 
-		amplification = 0x40,
-		mesh = 0x80,
-
-		raygen = 0x0100,
-		any_hit = 0x0200,
-		closest_hit = 0x0400,
-		miss = 0x0800,
-		intersection = 0x1000,
-		callable = 0x2000,
-
 		all = 0x7FFFFFFF,
 		all_compute = compute,
-		all_graphics = vertex | hull | domain | geometry | pixel | amplification | mesh,
-		all_ray_tracing = raygen | any_hit | closest_hit | miss | intersection | callable
+		all_graphics = vertex | hull | domain | geometry | pixel
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(shader_stage);
 
@@ -50,11 +39,6 @@ namespace reshade { namespace api
 		pixel_shader = 0x80,
 		compute_shader = 0x800,
 
-		amplification_shader = 0x80000,
-		mesh_shader = 0x100000,
-
-		ray_tracing_shader = 0x00200000,
-
 		input_assembler = 0x2,
 		stream_output = 0x4,
 		rasterizer = 0x100,
@@ -64,7 +48,6 @@ namespace reshade { namespace api
 		all = 0x7FFFFFFF,
 		all_compute = compute_shader,
 		all_graphics = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | input_assembler | stream_output | rasterizer | depth_stencil | output_merger,
-		all_ray_tracing = ray_tracing_shader,
 		all_shader_stages = vertex_shader | hull_shader | domain_shader | geometry_shader | pixel_shader | compute_shader
 	};
 	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(pipeline_stage);
@@ -79,8 +62,7 @@ namespace reshade { namespace api
 		shader_resource_view = 2,
 		unordered_access_view = 3,
 		constant_buffer = 6,
-		shader_storage_buffer = 7,
-		acceleration_structure
+		shader_storage_buffer = 7
 	};
 
 	/// <summary>
@@ -89,9 +71,9 @@ namespace reshade { namespace api
 	enum class pipeline_layout_param_type : uint32_t
 	{
 		push_constants = 1,
-		descriptor_table = 0,
+		descriptor_set = 0,
 		push_descriptors = 2,
-		push_descriptors_with_ranges = 3
+		push_descriptors_ranges = 3
 	};
 
 	/// <summary>
@@ -122,13 +104,13 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// Describes a range of descriptors of a descriptor table in a pipeline layout.
+	/// Describes a range of descriptors in a descriptor set layout.
 	/// </summary>
 	struct descriptor_range
 	{
 		/// <summary>
 		/// OpenGL/Vulkan binding index (<c>layout(binding=X)</c> in GLSL).
-		/// In D3D this is equivalent to the offset (in descriptors) of this range in the descriptor table (since each binding can only have an array size of 1).
+		/// In D3D this is equivalent to the offset (in descriptors) of this range in the descriptor set (since each binding can only have an array size of 1).
 		/// </summary>
 		uint32_t binding = 0;
 		/// <summary>
@@ -141,7 +123,6 @@ namespace reshade { namespace api
 		uint32_t dx_register_space = 0;
 		/// <summary>
 		/// Number of descriptors in this range.
-		/// Set to -1 (UINT32_MAX) to indicate an unbounded range.
 		/// </summary>
 		uint32_t count = 0;
 		/// <summary>
@@ -168,7 +149,7 @@ namespace reshade { namespace api
 		constexpr pipeline_layout_param() : push_descriptors() {}
 		constexpr pipeline_layout_param(const constant_range &push_constants) : type(pipeline_layout_param_type::push_constants), push_constants(push_constants) {}
 		constexpr pipeline_layout_param(const descriptor_range &push_descriptors) : type(pipeline_layout_param_type::push_descriptors), push_descriptors(push_descriptors) {}
-		constexpr pipeline_layout_param(uint32_t count, const descriptor_range *ranges) : type(pipeline_layout_param_type::descriptor_table), descriptor_table({ count, ranges }) {}
+		constexpr pipeline_layout_param(uint32_t count, const descriptor_range *ranges) : type(pipeline_layout_param_type::descriptor_set), descriptor_set({ count, ranges }) {}
 
 		/// <summary>
 		/// Type of the parameter.
@@ -188,13 +169,13 @@ namespace reshade { namespace api
 			descriptor_range push_descriptors;
 
 			/// <summary>
-			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_table"/> or <see cref="pipeline_layout_param_type::push_descriptors_with_ranges"/>.
+			/// Used when parameter type is <see cref="pipeline_layout_param_type::descriptor_set"/> or <see cref="pipeline_layout_param_type::push_descriptors_ranges"/>.
 			/// </summary>
 			struct
 			{
 				uint32_t count;
 				const descriptor_range *ranges;
-			} descriptor_table;
+			} descriptor_set;
 		};
 	};
 
@@ -391,96 +372,6 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// The available ray tracing shader group types.
-	/// </summary>
-	enum class shader_group_type
-	{
-		raygen = 0,
-		miss = 3,
-		hit_group_triangles = 1,
-		hit_group_aabbs = 2,
-		callable = 4,
-	};
-
-	/// <summary>
-	/// Describes a ray tracing shader group.
-	/// </summary>
-	struct shader_group
-	{
-		shader_group() : hit_group() {}
-		shader_group(shader_group_type type, uint32_t closest_hit_shader_index, uint32_t any_hit_shader_index = UINT32_MAX, uint32_t intersection_shader_index = UINT32_MAX) : type(type), hit_group({ closest_hit_shader_index, any_hit_shader_index, intersection_shader_index }) {}
-
-		/// <summary>
-		/// Type of the shader group.
-		/// </summary>
-		shader_group_type type = shader_group_type::raygen;
-
-		union
-		{
-			/// <summary>
-			/// Used when type is <see cref="shader_group_type::raygen"/>.
-			/// </summary>
-			struct
-			{
-				/// <summary>
-				/// Index of the shader in the ray generation shader pipeline subobject.
-				/// </summary>
-				/// <seealso cref="pipeline_subobject_type::raygen_shader"/>
-				uint32_t shader_index = UINT32_MAX;
-			} raygen;
-
-			/// <summary>
-			/// Used when type is <see cref="shader_group_type::miss"/>.
-			/// </summary>
-			struct
-			{
-				/// <summary>
-				/// Index of the shader in the miss shader pipeline subobject.
-				/// </summary>
-				/// <seealso cref="pipeline_subobject_type::miss_shader"/>
-				uint32_t shader_index = UINT32_MAX;
-			} miss;
-
-			/// <summary>
-			/// Used when type is <see cref="shader_group_type::hit_group_triangles"/> or <see cref="shader_group_type::hit_group_aabbs"/>.
-			/// </summary>
-			struct
-			{
-				/// <summary>
-				/// Index of the shader in the closest-hit shader pipeline subobject.
-				/// Set to -1 (UINT32_MAX) to indicate that this shader type is not used in the hit group.
-				/// </summary>
-				/// <seealso cref="pipeline_subobject_type::closest_shader"/>
-				uint32_t closest_hit_shader_index = UINT32_MAX;
-				/// <summary>
-				/// Index of the shader in the any-hit shader pipeline subobject.
-				/// Set to -1 (UINT32_MAX) to indicate that this shader type is not used in the hit group.
-				/// </summary>
-				/// <seealso cref="pipeline_subobject_type::any_hit_shader"/>
-				uint32_t any_hit_shader_index = UINT32_MAX;
-				/// <summary>
-				/// Index of the shader in the intersection shader pipeline subobject.
-				/// Set to -1 (UINT32_MAX) to indicate that this shader type is not used in the hit group.
-				/// </summary>
-				/// <seealso cref="pipeline_subobject_type::intersection_shader"/>
-				uint32_t intersection_shader_index = UINT32_MAX;
-			} hit_group;
-
-			/// <summary>
-			/// Used when type is <see cref="shader_group_type::callable"/>.
-			/// </summary>
-			struct
-			{
-				/// <summary>
-				/// Index of the shader in the callable shader pipeline subobject.
-				/// </summary>
-				/// <seealso cref="pipeline_subobject_type::callable_shader"/>
-				uint32_t shader_index = UINT32_MAX;
-			} callable;
-		};
-	};
-
-	/// <summary>
 	/// Describes a single element in the vertex layout for the input-assembler stage.
 	/// </summary>
 	struct input_element
@@ -672,17 +563,17 @@ namespace reshade { namespace api
 		/// </summary>
 		bool stencil_enable = false;
 		/// <summary>
-		/// Mask applied to stencil values read from the depth-stencil buffer for pixels whose surface normal is towards the camera.
+		/// Mask applied to stencil values read from the depth-stencil buffer.
 		/// </summary>
-		uint8_t front_stencil_read_mask = 0xFF;
+		uint8_t stencil_read_mask = 0xFF;
 		/// <summary>
-		/// Mask applied to stencil values written to the depth-stencil buffer for pixels whose surface normal is towards the camera.
+		/// Mask applied to stencil values written to the depth-stencil buffer.
 		/// </summary>
-		uint8_t front_stencil_write_mask = 0xFF;
+		uint8_t stencil_write_mask = 0xFF;
 		/// <summary>
-		/// Reference value to perform against when stencil testing pixels whose surface normal is towards the camera.
+		/// Reference value to perform against when doing stencil testing.
 		/// </summary>
-		uint8_t front_stencil_reference_value = 0;
+		uint8_t stencil_reference_value = 0;
 		/// <summary>
 		/// Comparison function to use to compare new stencil value from a fragment against current stencil value for pixels whose surface normal is facing towards the camera.
 		/// </summary>
@@ -699,18 +590,6 @@ namespace reshade { namespace api
 		/// Stencil operation to perform when stencil testing passes and depth testing fails for pixels whose surface normal is facing towards the camera.
 		/// </summary>
 		stencil_op front_stencil_depth_fail_op = stencil_op::keep;
-		/// <summary>
-		/// Mask applied to stencil values read from the depth-stencil buffer for pixels whose surface normal is facing away from the camera.
-		/// </summary>
-		uint8_t back_stencil_read_mask = 0xFF;
-		/// <summary>
-		/// Mask applied to stencil values written to the depth-stencil buffer for pixels whose surface normal is facing away from the camera.
-		/// </summary>
-		uint8_t back_stencil_write_mask = 0xFF;
-		/// <summary>
-		/// Reference value to perform against when stencil testing pixels whose surface normal is facing away from the camera.
-		/// </summary>
-		uint8_t back_stencil_reference_value = 0;
 		/// <summary>
 		/// Comparison function to use to compare new stencil value from a fragment against current stencil value for pixels whose surface normal is facing away from the camera.
 		/// </summary>
@@ -730,24 +609,11 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// The available pipeline creation flags.
-	/// </summary>
-	enum class pipeline_flags : uint32_t
-	{
-		none = 0,
-		library = (1 << 0),
-		skip_triangles = (1 << 1),
-		skip_aabbs = (1 << 2),
-	};
-	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(pipeline_flags);
-
-	/// <summary>
 	/// The available pipeline sub-object types.
 	/// </summary>
 	enum class pipeline_subobject_type : uint32_t
 	{
 		unknown,
-
 		/// <summary>
 		/// Vertex shader to use.
 		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
@@ -859,93 +725,7 @@ namespace reshade { namespace api
 		/// Maximum number of vertices a draw call with this pipeline will draw.
 		/// Sub-object data is a pointer to a 32-bit unsigned integer value.
 		/// </summary>
-		max_vertex_count,
-		/// <summary>
-		/// Amplification shader to use.
-		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
-		/// </summary>
-		/// <seealso cref="shader_stage::amplification"/>
-		/// <seealso cref="pipeline_stage::amplification_shader"/>
-		amplification_shader,
-		/// <summary>
-		/// Mesh shader to use.
-		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
-		/// </summary>
-		/// <seealso cref="shader_stage::mesh"/>
-		/// <seealso cref="pipeline_stage::mesh_shader"/>
-		mesh_shader,
-		/// <summary>
-		/// Ray generation shader(s) to use.
-		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
-		/// </summary>
-		/// <seealso cref="shader_stage::raygen"/>
-		/// <seealso cref="pipeline_stage::ray_tracing_shader"/>
-		raygen_shader,
-		/// <summary>
-		/// Any-hit shader(s) to use.
-		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
-		/// </summary>
-		/// <seealso cref="shader_stage::any_hit"/>
-		/// <seealso cref="pipeline_stage::ray_tracing_shader"/>
-		any_hit_shader,
-		/// <summary>
-		/// Closest-hit shader(s) to use.
-		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
-		/// </summary>
-		/// <seealso cref="shader_stage::closest_hit"/>
-		/// <seealso cref="pipeline_stage::ray_tracing_shader"/>
-		closest_hit_shader,
-		/// <summary>
-		/// Miss shader(s) to use.
-		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
-		/// </summary>
-		/// <seealso cref="shader_stage::miss"/>
-		/// <seealso cref="pipeline_stage::ray_tracing_shader"/>
-		miss_shader,
-		/// <summary>
-		/// Intersection shader(s) to use.
-		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
-		/// </summary>
-		/// <seealso cref="shader_stage::intersection"/>
-		/// <seealso cref="pipeline_stage::ray_tracing_shader"/>
-		intersection_shader,
-		/// <summary>
-		/// Callable shader(s) to use.
-		/// Sub-object data is a pointer to a <see cref="shader_desc"/>.
-		/// </summary>
-		/// <seealso cref="shader_stage::callable"/>
-		/// <seealso cref="pipeline_stage::ray_tracing_shader"/>
-		callable_shader,
-		/// <summary>
-		/// Existing shader libraries added to this pipeline.
-		/// Sub-object data is a pointer to an array of <see cref="pipeline"/> handles.
-		/// </summary>
-		libraries,
-		/// <summary>
-		/// Ray tracing shader groups to use.
-		/// Sub-object data is a pointer to an array of <see cref="shader_group"/> values.
-		/// </summary>
-		shader_groups,
-		/// <summary>
-		/// Maximum payload size of shaders executed by this pipeline.
-		/// Sub-object data is a pointer to a 32-bit unsigned integer value.
-		/// </summary>
-		max_payload_size,
-		/// <summary>
-		/// Maximum hit attribute size of shaders executed by this pipeline.
-		/// Sub-object data is a pointer to a 32-bit unsigned integer value.
-		/// </summary>
-		max_attribute_size,
-		/// <summary>
-		/// Maximum recursion depth of shaders executed by this pipeline.
-		/// Sub-object data is a pointer to a 32-bit unsigned integer value.
-		/// </summary>
-		max_recursion_depth,
-		/// <summary>
-		/// Additional pipeline creation flags.
-		/// Sub-object data is a pointer to a <see cref="pipeline_flags"/> value.
-		/// </summary>
-		flags
+		max_vertex_count
 	};
 
 	/// <summary>
@@ -1011,22 +791,22 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// An opaque handle to a descriptor table in a descriptor heap.
+	/// An opaque handle to a descriptor set.
 	/// <para>In Vulkan this is a 'VkDescriptorSet' handle.</para>
 	/// </summary>
-	RESHADE_DEFINE_HANDLE(descriptor_table);
+	RESHADE_DEFINE_HANDLE(descriptor_set);
 
 	/// <summary>
-	/// All information needed to copy descriptors between descriptor tables.
+	/// All information needed to copy descriptors between descriptor sets.
 	/// </summary>
-	struct descriptor_table_copy
+	struct descriptor_set_copy
 	{
 		/// <summary>
-		/// Descriptor table to copy from.
+		/// Descriptor set to copy from.
 		/// </summary>
-		descriptor_table source_table = { 0 };
+		descriptor_set source_set = { 0 };
 		/// <summary>
-		/// Index of the binding in the source descriptor table.
+		/// Index of the binding in the source descriptor set.
 		/// </summary>
 		uint32_t source_binding = 0;
 		/// <summary>
@@ -1034,11 +814,11 @@ namespace reshade { namespace api
 		/// </summary>
 		uint32_t source_array_offset = 0;
 		/// <summary>
-		/// Descriptor table to copy to.
+		/// Descriptor set to copy to.
 		/// </summary>
-		descriptor_table dest_table = { 0 };
+		descriptor_set dest_set = { 0 };
 		/// <summary>
-		/// Index of the binding in the destination descriptor table.
+		/// Index of the binding in the destination descriptor set.
 		/// </summary>
 		uint32_t dest_binding = 0;
 		/// <summary>
@@ -1052,22 +832,22 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// All information needed to update descriptors in a descriptor table.
+	/// All information needed to update descriptors in a descriptor set.
 	/// </summary>
-	struct descriptor_table_update
+	struct descriptor_set_update
 	{
 		/// <summary>
-		/// Descriptor table to update.
+		/// Descriptor set to update.
 		/// </summary>
-		descriptor_table table = { 0 };
+		descriptor_set set = { 0 };
 		/// <summary>
 		/// OpenGL/Vulkan binding index in the descriptor set.
-		/// In D3D this is equivalent to the offset (in descriptors) from the start of the table.
+		/// In D3D this is equivalent to the offset (in descriptors) from the start of the set.
 		/// </summary>
 		uint32_t binding = 0;
 		/// <summary>
 		/// Array index in the specified <see cref="binding"/> to begin updating at.
-		/// Only meaningful in Vulkan, in OpenGL and other APIs this has to be 0 (since each array element gets a separate binding).
+		/// Only meaningful in Vulkan, in OpenGL and other APIs this has to be 0 (since each GLSL array element gets a separate binding index).
 		/// </summary>
 		uint32_t array_offset = 0;
 		/// <summary>
@@ -1080,47 +860,27 @@ namespace reshade { namespace api
 		/// </summary>
 		descriptor_type type = descriptor_type::sampler;
 		/// <summary>
-		/// Pointer to an array of descriptors to update in the descriptor table (which should be as large as the specified <see cref="count"/>).
-		/// Depending on the descriptor <see cref="type"/> this should be pointer to an array of <see cref="buffer_range"/>, <see cref="resource_view"/>, <see cref="sampler"/>, <see cref="sampler_with_resource_view"/> or <see cref="acceleration_structure"/>.
+		/// Pointer to an array of descriptors to update in the set (which should be as large as the specified <see cref="count"/>).
+		/// Depending on the descriptor <see cref="type"/> this should be pointer to an array of <see cref="buffer_range"/>, <see cref="resource_view"/>, <see cref="sampler"/> or <see cref="sampler_with_resource_view"/>.
 		/// </summary>
 		const void *descriptors = nullptr;
 	};
 
 	/// <summary>
-	/// An opaque handle to a descriptor heap.
+	/// An opaque handle to a descriptor pool.
 	/// <para>In D3D12 this is a pointer to a 'ID3D12DescriptorHeap' object, in Vulkan a 'VkDescriptorPool' handle.</para>
 	/// </summary>
-	RESHADE_DEFINE_HANDLE(descriptor_heap);
+	RESHADE_DEFINE_HANDLE(descriptor_pool);
 
 	/// <summary>
 	/// The available query types.
 	/// </summary>
 	enum class query_type
 	{
-		/// <summary>
-		/// Number of samples that passed the depth and stencil tests between beginning and end of the query.
-		/// Data is a 64-bit unsigned integer value.
-		/// </summary>
 		occlusion = 0,
-		/// <summary>
-		/// Zero if no samples passed, one if at least one sample passed the depth and stencil tests between beginning and end of the query.
-		/// Data is a 64-bit unsigned integer value.
-		/// </summary>
 		binary_occlusion = 1,
-		/// <summary>
-		/// GPU timestamp at the frequency returned by <see cref="command_queue::get_timestamp_frequency"/>.
-		/// Data is a 64-bit unsigned integer value.
-		/// </summary>
 		timestamp = 2,
-		/// <summary>
-		/// Pipeline statistics (such as the number of shader invocations) between beginning and end of the query.
-		/// Data is a structure of type <c>{ uint64_t ia_vertices; uint64_t ia_primitives; uint64_t vs_invocations; uint64_t gs_invocations; uint64_t gs_primitives; uint64_t invocations; uint64_t primitives; uint64_t ps_invocations; uint64_t hs_invocations; uint64_t ds_invocations; uint64_t cs_invocations; }</c>.
-		/// </summary>
 		pipeline_statistics = 3,
-		/// <summary>
-		/// Streaming output statistics for stream 0 between beginning and end of the query.
-		/// Data is a structure of type <c>{ uint64_t primitives_written; uint64_t primitives_storage_needed; }</c>.
-		/// </summary>
 		stream_output_statistics_0 = 4,
 		stream_output_statistics_1,
 		stream_output_statistics_2,
@@ -1128,10 +888,10 @@ namespace reshade { namespace api
 	};
 
 	/// <summary>
-	/// An opaque handle to a query heap.
+	/// An opaque handle to a query pool.
 	/// <para>In D3D12 this is a pointer to a 'ID3D12QueryHeap' object, in Vulkan a 'VkQueryPool' handle.</para>
 	/// </summary>
-	RESHADE_DEFINE_HANDLE(query_heap);
+	RESHADE_DEFINE_HANDLE(query_pool);
 
 	/// <summary>
 	/// A list of all possible render pipeline states that can be set independent of pipeline state objects.
@@ -1159,8 +919,8 @@ namespace reshade { namespace api
 		source_alpha_blend_factor = 207,
 		dest_alpha_blend_factor = 208,
 		alpha_blend_op = 209,
-		blend_constant = 193,
 		logic_op = 1005,
+		blend_constant = 193,
 		render_target_write_mask = 168,
 
 		// Rasterizer state
@@ -1182,24 +942,17 @@ namespace reshade { namespace api
 		depth_write_mask = 14,
 		depth_func = 23,
 		stencil_enable = 52,
-		front_stencil_read_mask = 58,
-		front_stencil_write_mask = 59,
-		front_stencil_reference_value = 57,
+		stencil_read_mask = 58,
+		stencil_write_mask = 59,
+		stencil_reference_value = 57,
 		front_stencil_func = 56,
 		front_stencil_pass_op = 55,
 		front_stencil_fail_op = 53,
 		front_stencil_depth_fail_op = 54,
-		back_stencil_read_mask = 1006,
-		back_stencil_write_mask = 1007,
-		back_stencil_reference_value = 1008,
 		back_stencil_func = 189,
 		back_stencil_pass_op = 188,
 		back_stencil_fail_op = 186,
-		back_stencil_depth_fail_op = 187,
-
-		// Ray tracing state
-
-		ray_tracing_pipeline_stack_size = 2000
+		back_stencil_depth_fail_op = 187
 	};
 
 	/// <summary>
@@ -1228,22 +981,4 @@ namespace reshade { namespace api
 		float min_depth = 0.0f;
 		float max_depth = 1.0f;
 	};
-
-	/// <summary>
-	/// A list of flags that describe fence creation options.
-	/// </summary>
-	enum class fence_flags : uint32_t
-	{
-		none = 0,
-		shared = (1 << 1),
-		shared_nt_handle = (1 << 11),
-		non_monitored = (1 << 3)
-	};
-	RESHADE_DEFINE_ENUM_FLAG_OPERATORS(fence_flags);
-
-	/// <summary>
-	/// An opaque handle to a fence synchronization object.
-	/// <para>In D3D11 or D3D12 this is a pointer to a 'ID3D11Fence' or 'ID3D12Fence' object, in Vulkan a 'VkSemaphore' handle.</para>
-	/// </summary>
-	RESHADE_DEFINE_HANDLE(fence);
-} }
+}

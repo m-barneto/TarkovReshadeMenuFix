@@ -21,12 +21,6 @@
     <ClInclude Include="pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="reshade-api\reshade_api.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="reshade-api\reshade_api_device.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="reshade-api\reshade_api_format.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -45,10 +39,16 @@
     <ClInclude Include="reshade-api\reshade.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="imgui.h">
+    <ClInclude Include="reshade-api\reshade_api.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="reshade-api\reshade_api_device.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="imconfig.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

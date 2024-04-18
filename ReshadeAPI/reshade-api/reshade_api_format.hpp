@@ -8,7 +8,7 @@
 #include <cfloat>
 #include <cstdint>
 
-namespace reshade { namespace api
+namespace reshade::api
 {
 	/// <summary>
 	/// The available data and texture formats.
@@ -97,7 +97,6 @@ namespace reshade { namespace api
 		b5g5r5a1_unorm = 86,
 		b5g5r5x1_unorm = 0x424757B5,
 		b4g4r4a4_unorm = 115,
-		a4b4g4r4_unorm = 191,
 
 		// Depth-stencil formats
 
@@ -336,7 +335,6 @@ namespace reshade { namespace api
 		case format::b10g10r10a2_typeless:
 			return format::b10g10r10a2_unorm;
 		case format::d16_unorm:
-			return format::r16_unorm;
 		case format::r16_typeless:
 			return format::r16_float;
 		case format::r16g16_typeless:
@@ -447,7 +445,6 @@ namespace reshade { namespace api
 
 		return 0;
 	}
-
 	/// <summary>
 	/// Gets the number of bytes a texture slice of the specified format <paramref name="value"/> occupies.
 	/// </summary>
@@ -458,4 +455,4 @@ namespace reshade { namespace api
 
 		return row_pitch * height;
 	}
-} }
+}
