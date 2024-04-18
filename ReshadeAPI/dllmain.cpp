@@ -50,10 +50,8 @@ static void saveConfig() {
 static void refreshEffects() {
     const std::filesystem::path shadersDirectory = L"reshade-shaders\\Shaders";
 
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(shadersDirectory))
-    {
-        if (entry.is_regular_file() && entry.path().filename().extension() == ".fx")
-        {
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(shadersDirectory)) {
+        if (entry.is_regular_file() && entry.path().filename().extension() == ".fx") {
             effects.push_back(entry.path().filename().string());
         }
     }
