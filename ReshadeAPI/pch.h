@@ -14,7 +14,15 @@
 #define ImTextureID ImU64
 
 #include "imgui.h"
+
 #include "reshade-api/reshade.hpp"
 
+#include "SimpleIni.h"
+
+#include <string>
+#include <vector>
+#include <map>
+#include <iostream>
+#include <filesystem>
 
 #endif //PCH_H

@@ -1,20 +1,16 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #include "pch.h"
-#include <string>
-#include <vector>
-
 
 using namespace reshade::api;
 using namespace reshade;
 
-
 static effect_runtime* s_pRuntime = nullptr;
 
-#include <map>
-#include <iostream>
+static std::vector<std::string> effects{};
+static std::map<std::string, bool> menuEffects{};
+static std::map<std::string, bool> nvEffects{};
 
-static std::map<std::string, bool> effects{};
-
+#pragma region Exports
 extern "C" __declspec(dllexport) bool SetEffectsState(bool enabled) {
     if (s_pRuntime) {
         s_pRuntime->set_effects_state(enabled);
@@ -26,7 +22,7 @@ extern "C" __declspec(dllexport) bool SetEffectsState(bool enabled) {
 extern "C" __declspec(dllexport) bool SetMenuState(bool inMenu) {
     if (s_pRuntime) {
         bool state = !inMenu;
-        for (const auto& kv : effects) {
+        for (const auto& kv : menuEffects) {
             if (kv.second) {
                 // set effect state set_technique_state (effect_technique technique, bool enabled)
                 // find_technique (const char *effect_name, const char *technique_name)=0
@@ -42,29 +38,54 @@ extern "C" __declspec(dllexport) bool SetMenuState(bool inMenu) {
     }
     return false;
 }
+#pragma endregion
 
-// Callback when Reshade begins effects
-static void on_reshade_begin_effects(effect_runtime* runtime, command_list* cmd_list, resource_view rtv, resource_view rtv_srgb) {
+static void saveConfig() {
+    CSimpleIniA ini;
+    ini.SetUnicode();
+    SI_Error rc = ini.LoadFile("example.ini");
+    if (rc < 0) { /* handle error */ };
+}
+
+static void refreshEffects() {
+    const std::filesystem::path shadersDirectory = L"reshade-shaders\\Shaders";
+
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(shadersDirectory))
+    {
+        if (entry.is_regular_file() && entry.path().filename().extension() == ".fx")
+        {
+            effects.push_back(entry.path().filename().string());
+        }
+    }
+    //sort files
+    std::sort(effects.begin(), effects.end());
+}
+
+#pragma region Reshade
+static void onBeginEffects(effect_runtime* runtime, command_list* cmd_list, resource_view rtv, resource_view rtv_srgb) {
     s_pRuntime = runtime;
     s_pRuntime->enumerate_techniques(nullptr, [](effect_runtime* runtime, effect_technique technique)
         {
             const int size = 255;
             char buffer[size];
             runtime->get_technique_name<255>(technique, buffer);
+            buffer[size - 1] = '\0';
+            std::string techniqueName = std::string(buffer);
             // Items that will be disabled when going into menus
             bool state = runtime->get_technique_state(technique);
             if (state) {
-                effects[buffer] = runtime->get_technique_state(technique);
+                menuEffects[techniqueName] = runtime->get_technique_state(technique);
+                nvEffects[techniqueName] = runtime->get_technique_state(technique);
             }
         }
     );
-    reshade::unregister_event<reshade::addon_event::reshade_begin_effects>(&on_reshade_begin_effects);
+    reshade::unregister_event<reshade::addon_event::reshade_begin_effects>(&onBeginEffects);
 }
 
-static void draw_settings_overlay(reshade::api::effect_runtime* runtime)
-{
+static void drawSettingsOverlay(reshade::api::effect_runtime* runtime) {
+    bool hasChanged = false;
     ImGui::Text("Effects to be disabled in menus.");
-    for (const auto& kv : effects) {
+    for (const auto& kv : menuEffects) {
         // set effect state set_technique_state (effect_technique technique, bool enabled)
         // find_technique (const char *effect_name, const char *technique_name)=0
         effect_technique technique = s_pRuntime->find_technique(nullptr, kv.first.c_str());
@@ -72,11 +93,29 @@ static void draw_settings_overlay(reshade::api::effect_runtime* runtime)
             std::cout << "Technique wasn't found! " << kv.first << std::endl;
             continue;
         }
-        ImGui::Checkbox(kv.first.c_str(), &effects[kv.first]);
+        if (ImGui::Checkbox(kv.first.c_str(), &menuEffects[kv.first])) {
+            hasChanged = true;
+        }
+    }
+
+    ImGui::Text("Effects to be disabled while using night vision.");
+    for (const auto& kv : nvEffects) {
+        // set effect state set_technique_state (effect_technique technique, bool enabled)
+        // find_technique (const char *effect_name, const char *technique_name)=0
+        effect_technique technique = s_pRuntime->find_technique(nullptr, kv.first.c_str());
+        if (technique == 0) {
+            std::cout << "Technique wasn't found! " << kv.first << std::endl;
+            continue;
+        }
+        if (ImGui::Checkbox(kv.first.c_str(), &nvEffects[kv.first])) {
+            hasChanged = true;
+        }
+    }
+
+    if (hasChanged) {
+        // save settings
     }
 }
-
-
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved) {
     switch (ul_reason_for_call) {
@@ -84,8 +123,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
         if (!reshade::register_addon(hModule))
             return FALSE;
 
-        reshade::register_event<reshade::addon_event::reshade_begin_effects>(&on_reshade_begin_effects);
-        reshade::register_overlay(nullptr, &draw_settings_overlay);
+        reshade::register_event<reshade::addon_event::reshade_begin_effects>(&onBeginEffects);
+        reshade::register_overlay(nullptr, &drawSettingsOverlay);
         break;
     case DLL_PROCESS_DETACH:
         //reshade::unregister_event<reshade::addon_event::reshade_begin_effects>(&on_reshade_begin_effects);
@@ -95,4 +134,5 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 
     return TRUE;
 }
+#pragma endregion
 
