@@ -152,6 +152,7 @@
     <ClInclude Include="reshade-api\reshade_api_resource.hpp" />
     <ClInclude Include="reshade-api\reshade_events.hpp" />
     <ClInclude Include="reshade-api\reshade_overlay.hpp" />
+    <ClInclude Include="SimpleIni.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
