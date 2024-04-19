@@ -145,6 +145,7 @@
   <ItemGroup>
     <ClInclude Include="framework.h" />
     <ClInclude Include="imconfig.h" />
+    <ClInclude Include="imfilebrowser.h" />
     <ClInclude Include="imgui.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="reshade-api\reshade.hpp" />

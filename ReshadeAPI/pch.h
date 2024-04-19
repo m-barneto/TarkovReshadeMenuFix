@@ -15,6 +15,8 @@
 
 #include "imgui.h"
 
+#include "imfilebrowser.h"
+
 #include "reshade-api/reshade.hpp"
 
 #include "SimpleIni.h"

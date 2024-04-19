@@ -4,213 +4,239 @@
 using namespace reshade::api;
 using namespace reshade;
 
+enum PresetState {
+    NORMAL,
+    MENU,
+    NIGHT_VISION
+};
+
+static PresetState state = PresetState::NORMAL;
 static effect_runtime* runtime = nullptr;
-static CSimpleIniA* config = nullptr;
-static bool isUsingNightVision = false;
-static bool isInMenu = false;
+static CSimpleIniA* reshadeMenuFixConfig = nullptr;
+
+
+
+
+static ImGui::FileBrowser normalPresetFileDialog;
+static ImGui::FileBrowser menuPresetFileDialog;
+static ImGui::FileBrowser nvPresetFileDialog;
+
+static std::string normalPresetPath;
+static std::string menuPresetPath;
+static std::string nightVisionPresetPath;
+
+static const std::string configDirectory = "./reshade-shaders";
+static const std::string fullConfigPath = configDirectory + "\\" + "TarkovReshadeMenuFix.ini";
+
 
 static std::vector<std::string> effects{};
 static std::map<std::string, bool> menuEffects{};
 static std::map<std::string, bool> nvEffects{};
 
 static bool updateActiveEffects() {
-	// in normal vision raid
-	bool state = !isInMenu && !isUsingNightVision;
-	std::cout << "State: " << state << std::endl;
-	if (runtime) {
-		for (const auto& kv : menuEffects) {
-			if (kv.second) {
-				effect_technique technique = runtime->find_technique(nullptr, kv.first.c_str());
-				if (technique == 0) {
-					std::cout << "Technique wasn't found! " << kv.first << std::endl;
-					continue;
-				}
-				runtime->set_technique_state(technique, false);
-			}
-		}
-		for (const auto& kv : nvEffects) {
-			if (kv.second) {
-				effect_technique technique = runtime->find_technique(nullptr, kv.first.c_str());
-				if (technique == 0) {
-					std::cout << "Technique wasn't found! " << kv.first << std::endl;
-					continue;
-				}
-				runtime->set_technique_state(technique, false);
-			}
-		}
-		return true;
-	}
-	return false;
+    if (runtime) {
+        switch (state) {
+        case PresetState::NORMAL:
+            runtime->set_current_preset_path(normalPresetPath.c_str());
+            break;
+        case PresetState::MENU:
+            runtime->set_current_preset_path(menuPresetPath.c_str());
+            break;
+        case PresetState::NIGHT_VISION:
+            runtime->set_current_preset_path(nightVisionPresetPath.c_str());
+            break;
+        }
+        return true;
+    }
+    return false;
 }
 
-static std::vector<std::string> getActiveEffects() {
-	std::vector<std::string> activeEffects{};
-	for (int i = 0; i < effects.size(); i++) {
-		effect_technique technique = runtime->find_technique(nullptr, effects[i].c_str());
-		if (technique == 0) {
-			std::cout << "Technique wasn't found! " << effects[i].c_str() << std::endl;
-			continue;
-		}
-		if (runtime->get_technique_state(technique)) {
-			activeEffects.push_back(effects[i]);
-		}
-	}
-	return activeEffects;
-}
-
-static void refreshEffects() {
-	effects.clear();
-
-	const std::filesystem::path shadersDirectory = "./reshade-shaders/Shaders";
-
-	for (const auto& entry : std::filesystem::recursive_directory_iterator(shadersDirectory))
-	{
-		if (entry.is_regular_file() && entry.path().filename().extension() == ".fx")
-		{
-			std::string entryPath = entry.path().filename().string();
-
-			std::cout << entry.path().filename().string().substr(0, entryPath.size() - 3) << std::endl;
-			effects.push_back(entry.path().filename().string().substr(0, entryPath.size() - 3));
-		}
-	}
-	//sort files
-	std::sort(effects.begin(), effects.end());
+static void saveAndUpdate() {
+    reshadeMenuFixConfig->SaveFile(fullConfigPath.c_str());
+    updateActiveEffects();
 }
 
 static void saveDefaultConfig() {
-	std::string configDirectory = "./reshade-shaders";
-	std::filesystem::create_directory(configDirectory);
+    std::filesystem::create_directory(configDirectory);
 
-	std::string fullPath = configDirectory + "\\" + "TarkovReshadeMenuFix.ini";
+    CSimpleIniA config;
+    config.SetUnicode();
 
-	CSimpleIniA config;
-	config.SetUnicode();
+    const int size = 255;
+    char buffer[size];
+    runtime->get_current_preset_path(buffer);
+    buffer[size - 1] = '\0';
 
-	for (int i = 0; i < effects.size(); i++) {
-		config.SetBoolValue("DisabledMenuEffects", effects[i].c_str(), true);
-	}
-	for (int i = 0; i < effects.size(); i++) {
-		config.SetBoolValue("DisabledNightVisionEffects", effects[i].c_str(), true);
-	}
+    config.SetValue("Presets", "NormalPresetPath", buffer);
+    config.SetValue("Presets", "NightVisionPresetPath", buffer);
+    config.SetValue("Presets", "MenuPresetPath", buffer);
 
-	config.SaveFile(fullPath.c_str());
+    config.SaveFile(fullConfigPath.c_str());
 }
 
 static CSimpleIniA* loadConfig() {
-	// Check path, if it exists, read it, otherwise, load defaults
-	std::string configDirectory = "./reshade-shaders";
-	std::filesystem::create_directory(configDirectory);
+    // Check path, if it exists, read it, otherwise, load defaults
+    std::filesystem::create_directory(configDirectory);
 
-	std::string fullPath = configDirectory + "\\" + "TarkovReshadeMenuFix.ini";
+    if (!std::filesystem::exists(fullConfigPath)) {
+        // create default
+        saveDefaultConfig();
+    }
+    // load config
 
-	if (!std::filesystem::exists(fullPath)) {
-		// create default
-		saveDefaultConfig();
-	}
-	// load config
+    CSimpleIniA* config = new CSimpleIniA();
+    config->LoadFile(fullConfigPath.c_str());
 
-	CSimpleIniA config;
-	config.LoadFile(fullPath.c_str());
+    if (config->GetValue("Presets", "NormalPresetPath") == nullptr) {
+        std::cout << "Normal Preset Path not found in loaded config!" << std::endl;
+    }
+    else {
+        normalPresetPath = config->GetValue("Presets", "NormalPresetPath");
+    }
+    if (config->GetValue("Presets", "MenuPresetPath") == nullptr) {
+        std::cout << "Menu Preset Path not found in loaded config!" << std::endl;
+    }
+    else {
+        menuPresetPath = config->GetValue("Presets", "MenuPresetPath");
+    }
+    if (config->GetValue("Presets", "NightVisionPresetPath") == nullptr) {
+        std::cout << "Night Vision Preset Path not found in loaded config!" << std::endl;
+    }
+    else {
+        nightVisionPresetPath = config->GetValue("Presets", "NightVisionPresetPath");
+    }
 
-	for (int i = 0; i < effects.size(); i++) {
-		// if its in config
-		
-	}
-
-	return &config;
+    return config;
 }
 
 #pragma region Reshade
 static void onInitEffectRuntime(effect_runtime* effectRuntime) {
-	runtime = effectRuntime;
+    runtime = effectRuntime;
 }
 
 static void onBeginEffects(effect_runtime* eRuntime, command_list* cmd_list, resource_view rtv, resource_view rtv_srgb) {
-	eRuntime->enumerate_techniques(nullptr, [](effect_runtime* runtime, effect_technique technique)
-		{
-			const int size = 255;
-			char buffer[size];
-			runtime->get_technique_name<255>(technique, buffer);
-			buffer[size - 1] = '\0';
-			std::string techniqueName = std::string(buffer);
+    eRuntime->enumerate_techniques(nullptr, [](effect_runtime* runtime, effect_technique technique)
+        {
+            const int size = 255;
+            char buffer[size];
+            runtime->get_technique_name<255>(technique, buffer);
+            buffer[size - 1] = '\0';
+            std::string techniqueName = std::string(buffer);
 
-			effects.push_back(techniqueName);
-		}
-	);
-	config = loadConfig();
-	reshade::unregister_event<reshade::addon_event::reshade_begin_effects>(&onBeginEffects);
+            effects.push_back(techniqueName);
+        }
+    );
+    if (reshadeMenuFixConfig != nullptr) {
+        free(reshadeMenuFixConfig);
+    }
+    reshadeMenuFixConfig = loadConfig();
+    reshade::unregister_event<reshade::addon_event::reshade_begin_effects>(&onBeginEffects);
 }
 
 static void drawSettingsOverlay(reshade::api::effect_runtime* effectRuntime) {
-	bool hasChanged = false;
-	ImGui::Text("Effects to be disabled in menus.");
-	for (const auto& kv : menuEffects) {
-		// set effect state set_technique_state (effect_technique technique, bool enabled)
-		// find_technique (const char *effect_name, const char *technique_name)=0
-		effect_technique technique = effectRuntime->find_technique(nullptr, kv.first.c_str());
-		if (technique == 0) {
-			std::cout << "Technique wasn't found! " << kv.first << std::endl;
-			continue;
-		}
-		if (ImGui::Checkbox(kv.first.c_str(), &menuEffects[kv.first])) {
-			hasChanged = true;
-		}
-	}
+    ImGui::Text("Normal Preset:");
+    ImGui::Text(reshadeMenuFixConfig->GetValue("Presets", "NormalPresetPath", "Error!"));
+    ImGui::SameLine();
+    if (ImGui::Button("Select##Normal")) {
+        normalPresetFileDialog.Open();
+    }
 
-	ImGui::Text("Effects to be disabled while using night vision.");
-	for (const auto& kv : nvEffects) {
-		// set effect state set_technique_state (effect_technique technique, bool enabled)
-		// find_technique (const char *effect_name, const char *technique_name)=0
-		effect_technique technique = effectRuntime->find_technique(nullptr, kv.first.c_str());
-		if (technique == 0) {
-			std::cout << "Technique wasn't found! " << kv.first << std::endl;
-			continue;
-		}
-		if (ImGui::Checkbox(kv.first.c_str(), &nvEffects[kv.first])) {
-			hasChanged = true;
-		}
-	}
+    ImGui::Text("Menu Preset:");
+    ImGui::Text(reshadeMenuFixConfig->GetValue("Presets", "MenuPresetPath", "Error!"));
+    ImGui::SameLine();
+    if (ImGui::Button("Select##Menu")) {
+        menuPresetFileDialog.Open();
+    }
 
-	if (hasChanged) {
-		// save settings
-	}
+    ImGui::Text("Night Vision Preset:");
+    ImGui::Text(reshadeMenuFixConfig->GetValue("Presets", "NightVisionPresetPath", "Error!"));
+    ImGui::SameLine();
+    if (ImGui::Button("Select##NightVision")) {
+        nvPresetFileDialog.Open();
+    }
+
+
+    normalPresetFileDialog.Display();
+    menuPresetFileDialog.Display();
+    nvPresetFileDialog.Display();
+
+    if (normalPresetFileDialog.HasSelected()) {
+        std::cout << "Selected filename" << normalPresetFileDialog.GetSelected().string() << std::endl;
+        normalPresetPath = normalPresetFileDialog.GetSelected().string();
+        normalPresetFileDialog.ClearSelected();
+
+        reshadeMenuFixConfig->SetValue("Presets", "NormalPresetPath", normalPresetPath.c_str());
+        saveAndUpdate();
+    }
+
+    if (menuPresetFileDialog.HasSelected()) {
+        std::cout << "Selected filename" << menuPresetFileDialog.GetSelected().string() << std::endl;
+        menuPresetPath = menuPresetFileDialog.GetSelected().string();
+        menuPresetFileDialog.ClearSelected();
+
+        reshadeMenuFixConfig->SetValue("Presets", "MenuPresetPath", menuPresetPath.c_str());
+        saveAndUpdate();
+    }
+
+
+    if (nvPresetFileDialog.HasSelected()) {
+        std::cout << "Selected filename" << nvPresetFileDialog.GetSelected().string() << std::endl;
+        nightVisionPresetPath = nvPresetFileDialog.GetSelected().string();
+        nvPresetFileDialog.ClearSelected();
+
+        reshadeMenuFixConfig->SetValue("Presets", "NightVisionPresetPath", nightVisionPresetPath.c_str());
+        saveAndUpdate();
+    }
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved) {
-	switch (ul_reason_for_call) {
-	case DLL_PROCESS_ATTACH:
-		if (!reshade::register_addon(hModule))
-			return FALSE;
-		reshade::register_event<reshade::addon_event::init_effect_runtime>(&onInitEffectRuntime);
-		reshade::register_event<reshade::addon_event::reshade_begin_effects>(&onBeginEffects);
-		reshade::register_overlay(nullptr, &drawSettingsOverlay);
-		break;
-	case DLL_PROCESS_DETACH:
-		//reshade::unregister_event<reshade::addon_event::reshade_begin_effects>(&on_reshade_begin_effects);
-		reshade::unregister_addon(hModule);
-		break;
-	}
+    switch (ul_reason_for_call) {
+    case DLL_PROCESS_ATTACH:
+        if (!reshade::register_addon(hModule))
+            return FALSE;
+        reshade::register_event<reshade::addon_event::init_effect_runtime>(&onInitEffectRuntime);
+        reshade::register_event<reshade::addon_event::reshade_begin_effects>(&onBeginEffects);
 
-	return TRUE;
+        reshade::register_overlay(nullptr, &drawSettingsOverlay);
+        menuPresetFileDialog.SetTitle("Menu Preset");
+        menuPresetFileDialog.SetTypeFilters({ ".ini" });
+        nvPresetFileDialog.SetTitle("Night Vision Preset");
+        nvPresetFileDialog.SetTypeFilters({ ".ini" });
+        break;
+    case DLL_PROCESS_DETACH:
+        //reshade::unregister_event<reshade::addon_event::reshade_begin_effects>(&on_reshade_begin_effects);
+        reshade::unregister_addon(hModule);
+        break;
+    }
+
+    return TRUE;
 }
 #pragma endregion
 
 #pragma region Exports
 extern "C" __declspec(dllexport) bool SetEffectsState(bool enabled) {
-	if (runtime) {
-		runtime->set_effects_state(enabled);
-		return true;
-	}
-	return false;
+    if (runtime) {
+        runtime->set_effects_state(enabled);
+        return true;
+    }
+    return false;
 }
 
-extern "C" __declspec(dllexport) bool SetMenuState(bool bIsInMenu) {
-	isInMenu = bIsInMenu;
-	return updateActiveEffects();
+extern "C" __declspec(dllexport) bool SetMenuState(bool isInMenu) {
+    PresetState newState = isInMenu ? PresetState::MENU : PresetState::NORMAL;
+    if (newState != state) {
+        state = newState;
+        return updateActiveEffects();
+    }
+    return true;
 }
 
-extern "C" __declspec(dllexport) bool SetNightVisionState(bool bIsUsingNightVision) {
-	isUsingNightVision = bIsUsingNightVision;
-	return updateActiveEffects();
+extern "C" __declspec(dllexport) bool SetNightVisionState(bool isUsingNightVision) {
+    PresetState newState = isUsingNightVision ? PresetState::NIGHT_VISION : PresetState::NORMAL;
+    if (newState != state) {
+        state = newState;
+        return updateActiveEffects();
+    }
+    return true;
 }
 #pragma endregion
