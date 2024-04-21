@@ -10,11 +10,12 @@ enum PresetState {
     NIGHT_VISION
 };
 
-static PresetState state = PresetState::NORMAL;
+static PresetState state = PresetState::MENU;
 static effect_runtime* runtime = nullptr;
 static CSimpleIniA* reshadeMenuFixConfig = nullptr;
 
-
+static bool disableInMenus;
+static bool disableWithNightVision;
 
 
 static ImGui::FileBrowser normalPresetFileDialog;
@@ -29,21 +30,31 @@ static const std::string configDirectory = "./reshade-shaders";
 static const std::string fullConfigPath = configDirectory + "\\" + "TarkovReshadeMenuFix.ini";
 
 
-static std::vector<std::string> effects{};
-static std::map<std::string, bool> menuEffects{};
-static std::map<std::string, bool> nvEffects{};
-
 static bool updateActiveEffects() {
     if (runtime) {
+        if (disableInMenus || disableWithNightVision) {
+            if (!runtime->get_effects_state()) {
+                runtime->set_effects_state(true);
+            }
+        }
+
         switch (state) {
         case PresetState::NORMAL:
             runtime->set_current_preset_path(normalPresetPath.c_str());
             break;
         case PresetState::MENU:
-            runtime->set_current_preset_path(menuPresetPath.c_str());
+            if (disableInMenus) {
+                runtime->set_effects_state(false);
+            } else {
+                runtime->set_current_preset_path(menuPresetPath.c_str());
+            }
             break;
         case PresetState::NIGHT_VISION:
-            runtime->set_current_preset_path(nightVisionPresetPath.c_str());
+            if (disableWithNightVision) {
+                runtime->set_effects_state(false);
+            } else {
+                runtime->set_current_preset_path(nightVisionPresetPath.c_str());
+            }
             break;
         }
         return true;
@@ -68,8 +79,10 @@ static void saveDefaultConfig() {
     buffer[size - 1] = '\0';
 
     config.SetValue("Presets", "NormalPresetPath", buffer);
-    config.SetValue("Presets", "NightVisionPresetPath", buffer);
+    config.SetBoolValue("Behavior", "DisableInMenus", true);
     config.SetValue("Presets", "MenuPresetPath", buffer);
+    config.SetBoolValue("Behavior", "DisableWithNightVision", true);
+    config.SetValue("Presets", "NightVisionPresetPath", buffer);
 
     config.SaveFile(fullConfigPath.c_str());
 }
@@ -87,24 +100,12 @@ static CSimpleIniA* loadConfig() {
     CSimpleIniA* config = new CSimpleIniA();
     config->LoadFile(fullConfigPath.c_str());
 
-    if (config->GetValue("Presets", "NormalPresetPath") == nullptr) {
-        std::cout << "Normal Preset Path not found in loaded config!" << std::endl;
-    }
-    else {
-        normalPresetPath = config->GetValue("Presets", "NormalPresetPath");
-    }
-    if (config->GetValue("Presets", "MenuPresetPath") == nullptr) {
-        std::cout << "Menu Preset Path not found in loaded config!" << std::endl;
-    }
-    else {
-        menuPresetPath = config->GetValue("Presets", "MenuPresetPath");
-    }
-    if (config->GetValue("Presets", "NightVisionPresetPath") == nullptr) {
-        std::cout << "Night Vision Preset Path not found in loaded config!" << std::endl;
-    }
-    else {
-        nightVisionPresetPath = config->GetValue("Presets", "NightVisionPresetPath");
-    }
+    normalPresetPath = config->GetValue("Presets", "NormalPresetPath", "");
+    menuPresetPath = config->GetValue("Presets", "MenuPresetPath", "");
+    nightVisionPresetPath = config->GetValue("Presets", "NightVisionPresetPath", "");
+
+    disableInMenus = config->GetBoolValue("Behavior", "DisableInMenu", true);
+    disableWithNightVision = config->GetBoolValue("Behavior", "DisableWithNightVision", true);
 
     return config;
 }
@@ -115,22 +116,12 @@ static void onInitEffectRuntime(effect_runtime* effectRuntime) {
 }
 
 static void onBeginEffects(effect_runtime* eRuntime, command_list* cmd_list, resource_view rtv, resource_view rtv_srgb) {
-    eRuntime->enumerate_techniques(nullptr, [](effect_runtime* runtime, effect_technique technique)
-        {
-            const int size = 255;
-            char buffer[size];
-            runtime->get_technique_name<255>(technique, buffer);
-            buffer[size - 1] = '\0';
-            std::string techniqueName = std::string(buffer);
-
-            effects.push_back(techniqueName);
-        }
-    );
+    reshade::unregister_event<reshade::addon_event::reshade_begin_effects>(&onBeginEffects);
     if (reshadeMenuFixConfig != nullptr) {
         free(reshadeMenuFixConfig);
     }
     reshadeMenuFixConfig = loadConfig();
-    reshade::unregister_event<reshade::addon_event::reshade_begin_effects>(&onBeginEffects);
+    updateActiveEffects();
 }
 
 static void drawSettingsOverlay(reshade::api::effect_runtime* effectRuntime) {
@@ -141,19 +132,32 @@ static void drawSettingsOverlay(reshade::api::effect_runtime* effectRuntime) {
         normalPresetFileDialog.Open();
     }
 
-    ImGui::Text("Menu Preset:");
-    ImGui::Text(reshadeMenuFixConfig->GetValue("Presets", "MenuPresetPath", "Error!"));
-    ImGui::SameLine();
-    if (ImGui::Button("Select##Menu")) {
-        menuPresetFileDialog.Open();
+    if (ImGui::Checkbox("Disable effects in menus", &disableInMenus)) {
+        reshadeMenuFixConfig->SetBoolValue("Behavior", "DisableInMenu", disableInMenus);
+        saveAndUpdate();
+    }
+    if (!disableInMenus) {
+        ImGui::Text("Menu Preset:");
+        ImGui::Text(reshadeMenuFixConfig->GetValue("Presets", "MenuPresetPath", "Error!"));
+        ImGui::SameLine();
+        if (ImGui::Button("Select##Menu")) {
+            menuPresetFileDialog.Open();
+        }
     }
 
-    ImGui::Text("Night Vision Preset:");
-    ImGui::Text(reshadeMenuFixConfig->GetValue("Presets", "NightVisionPresetPath", "Error!"));
-    ImGui::SameLine();
-    if (ImGui::Button("Select##NightVision")) {
-        nvPresetFileDialog.Open();
+    if (ImGui::Checkbox("Disable effects when using night vision", &disableWithNightVision)) {
+        reshadeMenuFixConfig->SetBoolValue("Behavior", "DisableWithNightVision", disableWithNightVision);
+        saveAndUpdate();
     }
+    if (!disableWithNightVision) {
+        ImGui::Text("Night Vision Preset:");
+        ImGui::Text(reshadeMenuFixConfig->GetValue("Presets", "NightVisionPresetPath", "Error!"));
+        ImGui::SameLine();
+        if (ImGui::Button("Select##NightVision")) {
+            nvPresetFileDialog.Open();
+        }
+    }
+    
 
 
     normalPresetFileDialog.Display();
