@@ -26,7 +26,6 @@ namespace TarkovPlugin {
 
             [PatchPrefix]
             public static void Prefix(EEftScreenType eftScreenType) {
-                // NotificationManagerClass.DisplayMessageNotification(eftScreenType.ToString());
                 switch (eftScreenType) {
                     case EEftScreenType.None:
                     case EEftScreenType.BattleUI:
@@ -44,7 +43,6 @@ namespace TarkovPlugin {
 
             [PatchPrefix]
             public static void OnNvToggle(ref bool on) {
-                Logger.LogInfo($"NV toggle is {on}");
                 SetNightVisionState(on);
             }
         }
