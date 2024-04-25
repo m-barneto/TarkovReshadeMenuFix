@@ -208,7 +208,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
         nvPresetFileDialog.SetTypeFilters({ ".ini" });
         break;
     case DLL_PROCESS_DETACH:
-        //reshade::unregister_event<reshade::addon_event::reshade_begin_effects>(&on_reshade_begin_effects);
+        reshade::unregister_event<reshade::addon_event::init_effect_runtime>(&onInitEffectRuntime);
         reshade::unregister_addon(hModule);
         break;
     }
