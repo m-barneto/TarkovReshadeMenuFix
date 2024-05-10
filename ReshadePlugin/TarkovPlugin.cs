@@ -15,6 +15,10 @@ namespace TarkovPlugin {
         [DllImport("ReshadeAPI.addon")]
         private static extern bool SetNightVisionState(bool bIsUsingNightVision);
 
+
+        [DllImport("ReshadeAPI.addon")]
+        private static extern bool SetSelectedPreset(char[] presetPath);
+
         void Awake() {
             new OnScreenChangePatch().Enable();
             new NightVisionPatch().Enable();

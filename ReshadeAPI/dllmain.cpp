@@ -243,4 +243,8 @@ extern "C" __declspec(dllexport) bool SetNightVisionState(bool isUsingNightVisio
     }
     return true;
 }
+
+extern "C" __declspec(dllexport) void SetSelectedPreset(char* presetPath) {
+    runtime->set_current_preset_path(presetPath);
+}
 #pragma endregion

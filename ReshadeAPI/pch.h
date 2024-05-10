@@ -26,5 +26,6 @@
 #include <map>
 #include <iostream>
 #include <filesystem>
+#include <wtypes.h>
 
 #endif //PCH_H
