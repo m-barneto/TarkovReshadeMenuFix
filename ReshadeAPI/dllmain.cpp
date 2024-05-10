@@ -106,7 +106,7 @@ static CSimpleIniA* loadConfig() {
     menuPresetPath = config->GetValue("Presets", "MenuPresetPath", "");
     nightVisionPresetPath = config->GetValue("Presets", "NightVisionPresetPath", "");
 
-    disableInMenus = config->GetBoolValue("Behavior", "DisableInMenu", true);
+    disableInMenus = config->GetBoolValue("Behavior", "DisableInMenus", true);
     disableWithNightVision = config->GetBoolValue("Behavior", "DisableWithNightVision", true);
 
     return config;
