@@ -17,7 +17,7 @@ namespace TarkovPlugin {
 
 
         [DllImport("ReshadeAPI.addon")]
-        private static extern bool SetSelectedPreset(char[] presetPath);
+        private static extern bool SetSelectedPreset(string presetPath);
 
         void Awake() {
             new OnScreenChangePatch().Enable();
@@ -33,10 +33,12 @@ namespace TarkovPlugin {
                 switch (eftScreenType) {
                     case EEftScreenType.None:
                     case EEftScreenType.BattleUI:
-                        SetMenuState(false);
+                        SetSelectedPreset("IBC_BodyCam.ini");
+                        //SetMenuState(false);
                         break;
                     default:
-                        SetMenuState(true);
+                        SetSelectedPreset("IBC_NoCam.ini");
+                        //SetMenuState(true);
                         break;
                 }
             }
@@ -47,7 +49,12 @@ namespace TarkovPlugin {
 
             [PatchPrefix]
             public static void OnNvToggle(ref bool on) {
-                SetNightVisionState(on);
+                if (on) {
+                    SetSelectedPreset("IBC_BodyCam.ini");
+                } else {
+                    SetSelectedPreset("IBC_NoCam.ini");
+                }
+                //SetNightVisionState(on);
             }
         }
     }
