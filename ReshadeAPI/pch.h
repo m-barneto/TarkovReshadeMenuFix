@@ -15,6 +15,8 @@
 
 #include "imgui.h"
 
+#include "imfilebrowser.h"
+
 #include "reshade-api/reshade.hpp"
 
 #include "SimpleIni.h"
@@ -24,5 +26,6 @@
 #include <map>
 #include <iostream>
 #include <filesystem>
+#include <wtypes.h>
 
 #endif //PCH_H
