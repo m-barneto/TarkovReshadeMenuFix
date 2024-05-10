@@ -247,4 +247,18 @@ extern "C" __declspec(dllexport) bool SetNightVisionState(bool isUsingNightVisio
 extern "C" __declspec(dllexport) void SetSelectedPreset(const char* presetPath) {
     runtime->set_current_preset_path(presetPath);
 }
+
+extern "C" __declspec(dllexport) void SetStatePreset(PresetState state, const char* presetPath) {
+    switch (state) {
+    case PresetState::NORMAL:
+        normalPresetPath = presetPath;
+        break;
+    case PresetState::NIGHT_VISION:
+        nightVisionPresetPath = presetPath;
+        break;
+    case PresetState::MENU:
+        menuPresetPath = presetPath;
+        break;
+    }
+}
 #pragma endregion
