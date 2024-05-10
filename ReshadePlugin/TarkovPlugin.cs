@@ -7,7 +7,7 @@ using Aki.Reflection.Patching;
 using BSG.CameraEffects;
 
 namespace TarkovPlugin {
-    [BepInPlugin("Mattdokn.ReshadePlugin", "ReshadePlugin", "1.0.0")]
+    [BepInPlugin("Mattdokn.ReshadePlugin", "ReshadePlugin", "1.1.0")]
     public class Plugin : BaseUnityPlugin {
         [DllImport("ReshadeAPI.addon")]
         private static extern bool SetMenuState(bool bIsInMenu);
