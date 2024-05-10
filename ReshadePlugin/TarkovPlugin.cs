@@ -9,13 +9,10 @@ using BSG.CameraEffects;
 namespace TarkovPlugin {
     [BepInPlugin("Mattdokn.ReshadePlugin", "ReshadePlugin", "1.0.0")]
     public class Plugin : BaseUnityPlugin {
-
         [DllImport("ReshadeAPI.addon")]
         private static extern bool SetMenuState(bool bIsInMenu);
         [DllImport("ReshadeAPI.addon")]
         private static extern bool SetNightVisionState(bool bIsUsingNightVision);
-
-
         [DllImport("ReshadeAPI.addon")]
         private static extern bool SetSelectedPreset(string presetPath);
 
@@ -33,12 +30,10 @@ namespace TarkovPlugin {
                 switch (eftScreenType) {
                     case EEftScreenType.None:
                     case EEftScreenType.BattleUI:
-                        SetSelectedPreset("IBC_BodyCam.ini");
-                        //SetMenuState(false);
+                        SetMenuState(false);
                         break;
                     default:
-                        SetSelectedPreset("IBC_NoCam.ini");
-                        //SetMenuState(true);
+                        SetMenuState(true);
                         break;
                 }
             }
@@ -49,12 +44,7 @@ namespace TarkovPlugin {
 
             [PatchPrefix]
             public static void OnNvToggle(ref bool on) {
-                if (on) {
-                    SetSelectedPreset("IBC_BodyCam.ini");
-                } else {
-                    SetSelectedPreset("IBC_NoCam.ini");
-                }
-                //SetNightVisionState(on);
+                SetNightVisionState(on);
             }
         }
     }
